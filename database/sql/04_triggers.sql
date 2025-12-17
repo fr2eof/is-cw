@@ -42,41 +42,10 @@ FOR EACH ROW EXECUTE FUNCTION fn_inventory_apply_txn();
 COMMENT ON FUNCTION fn_inventory_apply_txn() IS 'Триггерная функция для автоматического обновления количества запасов и контроля отрицательных значений';
 
 -- =====================================================
--- ТРИГГЕР 2: Контроль пересечений назначений экипажа
+-- ТРИГГЕР 2: Проверка уникальности назначений (опционально)
 -- =====================================================
--- Запрещает назначение одного члена экипажа в двух экспедициях в перекрывающиеся даты
-CREATE OR REPLACE FUNCTION fn_check_assignment_overlap() 
-RETURNS TRIGGER AS $$
-DECLARE
-    cnt INTEGER;
-BEGIN
-    -- Считаем перекрывающиеся назначения того же crew_id
-    SELECT COUNT(*) INTO cnt 
-    FROM crew_assignment
-    WHERE crew_id = NEW.crew_id
-        AND assignment_id <> COALESCE(NEW.assignment_id, 0)
-        AND (
-            -- Проверяем перекрытие дат
-            (assigned_to IS NULL AND NEW.assigned_to IS NULL) OR
-            (assigned_to IS NULL AND NEW.assigned_to >= assigned_from) OR
-            (NEW.assigned_to IS NULL AND assigned_to >= NEW.assigned_from) OR
-            (NOT (assigned_to < NEW.assigned_from OR (NEW.assigned_to IS NOT NULL AND NEW.assigned_to < assigned_from)))
-        );
-
-    IF cnt > 0 AND (NEW.is_backup = false) THEN
-        RAISE EXCEPTION 'Crew member % already has overlapping assignment in another expedition (dates: % to %)',
-            NEW.crew_id, NEW.assigned_from, COALESCE(NEW.assigned_to, 'infinity');
-    END IF;
-
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER trg_check_assignment_overlap
-BEFORE INSERT OR UPDATE ON crew_assignment
-FOR EACH ROW EXECUTE FUNCTION fn_check_assignment_overlap();
-
-COMMENT ON FUNCTION fn_check_assignment_overlap() IS 'Триггерная функция для контроля пересечений назначений экипажа в разных экспедициях';
+-- Триггер не требуется, так как уникальность обеспечивается PRIMARY KEY (expedition_id, crew_id)
+-- Оставлено как комментарий для будущего расширения, если потребуется дополнительная логика
 
 -- =====================================================
 -- ТРИГГЕР 3: Проверка экологических правил и создание инцидентов

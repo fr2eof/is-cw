@@ -46,14 +46,24 @@ VALUES
     ('NAV', 'Navigator', true),
     ('DECK', 'Deck Officer', true);
 
--- НАЗНАЧЕНИЯ ЭКИПАЖА
-INSERT INTO crew_assignment(expedition_id, crew_id, role_id, assigned_from, is_backup)
+-- СВЯЗИ ЭКИПАЖ-РОЛИ
+INSERT INTO crew_role(role_id, crew_id)
 VALUES 
-    (1, 1, 1, '2026-01-05', false),  -- Ivan Petrov as Captain
-    (1, 2, 3, '2026-01-06', false),  -- Anna Sidorova as Scientist
-    (1, 3, 2, '2026-01-05', false),  -- John Smith as Engineer
-    (2, 1, 1, '2026-03-01', false),  -- Ivan Petrov as Captain for second expedition
-    (2, 4, 3, '2026-03-01', false);  -- Maria Garcia as Scientist
+    (1, 1),  -- Ivan Petrov has Captain role
+    (2, 3),  -- John Smith has Engineer role
+    (3, 2),  -- Anna Sidorova has Scientist role
+    (3, 4),  -- Maria Garcia has Scientist role
+    (4, 1),  -- Ivan Petrov has Navigator role
+    (5, 5);  -- Hans Mueller has Deck Officer role
+
+-- НАЗНАЧЕНИЯ ЭКИПАЖА НА ЭКСПЕДИЦИИ
+INSERT INTO crew_assignment(expedition_id, crew_id)
+VALUES 
+    (1, 1),  -- Ivan Petrov assigned to expedition 1
+    (1, 2),  -- Anna Sidorova assigned to expedition 1
+    (1, 3),  -- John Smith assigned to expedition 1
+    (2, 1),  -- Ivan Petrov assigned to expedition 2
+    (2, 4);  -- Maria Garcia assigned to expedition 2
 
 -- СЕРТИФИКАТЫ
 INSERT INTO certification(name, issuer, valid_from, valid_to)
@@ -82,20 +92,27 @@ VALUES
     ('SN-5000', 'Winch System', 'deck', 'good');
 
 -- ОБОРУДОВАНИЕ В ЭКСПЕДИЦИЯХ
-INSERT INTO expedition_equipment(expedition_id, equipment_id, attached_stage, qty)
+INSERT INTO expedition_equipment(expedition_id, equipment_id)
 VALUES 
-    (1, 1, 'research', 1),
-    (1, 3, 'research', 2),
-    (1, 2, 'transit', 1),
-    (2, 4, 'research', 1);
+    (1, 1),  -- CTD Profiler for expedition 1
+    (1, 3),  -- Water Sampler for expedition 1
+    (1, 2),  -- Davit Crane for expedition 1
+    (2, 4);  -- ROV System for expedition 2
+
+-- ЭКОЛОГИЧЕСКИЕ ПРАВИЛА
+INSERT INTO environmental_rule(name, parameter, threshold_value, threshold_operator, active)
+VALUES 
+    ('Max Oil Conc', 'oil_concentration', 0.05, '<=', true),
+    ('Min Temperature', 'temperature', -2.0, '>=', true),
+    ('Max Depth', 'depth', 6000, '<=', true);
 
 -- СЕНСОРЫ
-INSERT INTO sensor(equipment_id, name, sensor_type, unit, installed_on_vessel, installed_at)
+INSERT INTO sensor(equipment_id, name, sensor_type, unit, installed_on_vessel, installed_at, rule_id)
 VALUES 
-    (1, 'CTD-01', 'CTD', 'psu,degC', 1, now()),
-    (1, 'Depth Sensor', 'depth', 'meters', 1, now()),
-    (NULL, 'Temperature Sensor', 'temperature', 'degC', 3, now()),
-    (NULL, 'Oil Concentration Sensor', 'oil_concentration', 'ppm', 1, now());
+    (1, 'CTD-01', 'CTD', 'psu,degC', 1, now(), NULL),  -- CTD doesn't have a rule
+    (1, 'Depth Sensor', 'depth', 'meters', 1, now(), 3),  -- Max Depth rule
+    (NULL, 'Temperature Sensor', 'temperature', 'degC', 3, now(), 2),  -- Min Temperature rule
+    (NULL, 'Oil Concentration Sensor', 'oil_concentration', 'ppm', 1, now(), 1);  -- Max Oil Conc rule
 
 -- ЗАДАЧИ ЭКСПЕДИЦИИ
 INSERT INTO mission_task(expedition_id, title, description, responsible_crew_id, planned_start, planned_end, status)
@@ -140,13 +157,6 @@ VALUES
     (3, 'load', 1500, 1, 'Food supplies loaded'),
     (4, 'load', 8000, 1, 'Initial fuel loading for expedition 2'),
     (5, 'load', 3500, 1, 'Initial water loading for expedition 2');
-
--- ЭКОЛОГИЧЕСКИЕ ПРАВИЛА
-INSERT INTO environmental_rule(name, parameter, threshold_value, threshold_operator, active)
-VALUES 
-    ('Max Oil Conc', 'oil_concentration', 0.05, '<=', true),
-    ('Min Temperature', 'temperature', -2.0, '>=', true),
-    ('Max Depth', 'depth', 6000, '<=', true);
 
 -- ДОКУМЕНТЫ
 INSERT INTO document(expedition_id, doc_type, title, version, uploaded_by, stored_at)

@@ -94,11 +94,21 @@ CREATE INDEX idx_ca_crew ON crew_assignment(crew_id);
 COMMENT ON INDEX idx_ca_crew IS 
 'Ускоряет поиск всех экспедиций для конкретного члена экипажа. Используется в прецедентах: история работы сотрудника, проверка доступности, планирование карьеры.';
 
--- Индекс по датам для проверки пересечений (используется триггером)
-CREATE INDEX idx_ca_dates ON crew_assignment(crew_id, assigned_from, assigned_to);
+-- =====================================================
+-- ИНДЕКСЫ ДЛЯ ТАБЛИЦЫ CREW_ROLE
+-- =====================================================
 
-COMMENT ON INDEX idx_ca_dates IS 
-'Ускоряет проверку пересечений назначений в триггере fn_check_assignment_overlap. Критично для обеспечения целостности данных - предотвращение двойного назначения одного человека в перекрывающиеся периоды.';
+-- Индекс по crew_id для поиска ролей сотрудника
+CREATE INDEX idx_crew_role_crew ON crew_role(crew_id);
+
+COMMENT ON INDEX idx_crew_role_crew IS 
+'Ускоряет поиск всех ролей для конкретного члена экипажа. Используется в прецедентах: проверка квалификации, подбор экипажа по ролям.';
+
+-- Индекс по role_id для поиска сотрудников с конкретной ролью
+CREATE INDEX idx_crew_role_role ON crew_role(role_id);
+
+COMMENT ON INDEX idx_crew_role_role IS 
+'Ускоряет поиск всех членов экипажа с конкретной ролью. Используется в прецедентах: подбор экипажа для экспедиции по требуемым ролям.';
 
 -- =====================================================
 -- ИНДЕКСЫ ДЛЯ ТАБЛИЦЫ CREW_CERTIFICATION
@@ -183,6 +193,12 @@ CREATE INDEX idx_sensor_type ON sensor(sensor_type);
 
 COMMENT ON INDEX idx_sensor_type IS 
 'Ускоряет поиск сенсоров по типу. Используется в триггере fn_sensor_qc_and_env_check для сопоставления с environmental_rule.parameter.';
+
+-- Индекс по rule_id для поиска сенсоров, связанных с правилом
+CREATE INDEX idx_sensor_rule ON sensor(rule_id) WHERE rule_id IS NOT NULL;
+
+COMMENT ON INDEX idx_sensor_rule IS 
+'Ускоряет поиск всех сенсоров, связанных с конкретным экологическим правилом. Используется для управления правилами и проверки их применения.';
 
 -- =====================================================
 -- ИНДЕКСЫ ДЛЯ ТАБЛИЦЫ ENVIRONMENTAL_RULE

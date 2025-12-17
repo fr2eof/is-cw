@@ -3,24 +3,17 @@
 -- =====================================================
 
 -- =====================================================
--- ФУНКЦИЯ 1: Назначение экипажа на экспедицию с проверками
+-- ФУНКЦИЯ 1: Назначение экипажа на экспедицию
 -- =====================================================
 CREATE OR REPLACE FUNCTION assign_crew_to_expedition(
-    p_expedition_id BIGINT,
-    p_crew_id BIGINT,
-    p_role_id SMALLINT,
-    p_from DATE,
-    p_to DATE DEFAULT NULL,
-    p_is_backup BOOLEAN DEFAULT FALSE
+    p_expedition_id INTEGER,
+    p_crew_id INTEGER
 )
-RETURNS BIGINT -- возвращает assignment_id
+RETURNS VOID
 LANGUAGE plpgsql
 AS $$
 DECLARE
-    v_assignment_id BIGINT;
     v_expedition_exists BOOLEAN;
-    v_role_requires_cert BOOLEAN;
-    v_crew_has_cert BOOLEAN;
 BEGIN
     -- Проверка существования экспедиции
     SELECT EXISTS(SELECT 1 FROM expedition WHERE expedition_id = p_expedition_id)
@@ -35,85 +28,43 @@ BEGIN
         RAISE EXCEPTION 'Crew member % not found', p_crew_id;
     END IF;
 
-    -- Проверка существования роли
-    IF NOT EXISTS(SELECT 1 FROM role WHERE role_id = p_role_id) THEN
-        RAISE EXCEPTION 'Role % not found', p_role_id;
-    END IF;
-
-    -- Проверка пригодности: если роль требует сертификат, проверяем наличие действующего сертификата
-    SELECT min_cert_required INTO v_role_requires_cert
-    FROM role 
-    WHERE role_id = p_role_id;
-
-    IF v_role_requires_cert THEN
-        -- Ищем любую действующую сертификацию для crew
-        SELECT EXISTS(
-            SELECT 1 
-            FROM crew_certification cc
-            JOIN certification c ON c.certification_id = cc.certification_id
-            WHERE cc.crew_id = p_crew_id
-                AND (cc.expiry_date IS NULL OR cc.expiry_date >= CURRENT_DATE)
-        ) INTO v_crew_has_cert;
-
-        IF NOT v_crew_has_cert THEN
-            RAISE EXCEPTION 'Crew member % lacks required certifications for role %', p_crew_id, p_role_id;
-        END IF;
-    END IF;
-
-    -- Вставляем запись (trigger проверит перекрытие)
-    INSERT INTO crew_assignment(
-        expedition_id, 
-        crew_id, 
-        role_id, 
-        assigned_from, 
-        assigned_to, 
-        is_backup
-    )
-    VALUES (
-        p_expedition_id, 
-        p_crew_id, 
-        p_role_id, 
-        p_from, 
-        p_to, 
-        p_is_backup
-    )
-    RETURNING assignment_id INTO v_assignment_id;
+    -- Вставляем запись (PRIMARY KEY предотвратит дублирование)
+    INSERT INTO crew_assignment(expedition_id, crew_id)
+    VALUES (p_expedition_id, p_crew_id)
+    ON CONFLICT (expedition_id, crew_id) DO NOTHING;
 
     -- Логируем
     INSERT INTO system_audit(object_type, object_id, action, performed_by, details)
     VALUES (
         'crew_assignment', 
-        v_assignment_id::TEXT, 
+        format('%s_%s', p_expedition_id, p_crew_id), 
         'assign', 
         NULL, 
         jsonb_build_object(
             'expedition_id', p_expedition_id, 
-            'crew_id', p_crew_id,
-            'role_id', p_role_id
+            'crew_id', p_crew_id
         )
     );
-
-    RETURN v_assignment_id;
 END;
 $$;
 
-COMMENT ON FUNCTION assign_crew_to_expedition IS 'Назначение члена экипажа на экспедицию с проверками сертификатов и доступности';
+COMMENT ON FUNCTION assign_crew_to_expedition IS 'Назначение члена экипажа на экспедицию';
 
 -- =====================================================
 -- ФУНКЦИЯ 2: Корректировка инвентаря (атомарно)
 -- =====================================================
 CREATE OR REPLACE FUNCTION adjust_inventory(
-    p_item_id BIGINT,
+    p_item_id INTEGER,
     p_txn_type TEXT,
     p_qty NUMERIC,
-    p_performed_by BIGINT DEFAULT NULL,
+    p_performed_by INTEGER DEFAULT NULL,
     p_notes TEXT DEFAULT NULL
 )
-RETURNS BIGINT -- возвращает txn_id
+RETURNS INTEGER -- возвращает txn_id
 LANGUAGE plpgsql
 AS $$
 DECLARE
-    v_txn_id BIGINT;
+    v_txn_id INTEGER;
 BEGIN
     -- Проверка существования позиции инвентаря
     IF NOT EXISTS(SELECT 1 FROM inventory_item WHERE item_id = p_item_id) THEN
@@ -140,14 +91,14 @@ COMMENT ON FUNCTION adjust_inventory IS 'Атомарная операция к�
 -- ФУНКЦИЯ 3: Рекомендация экипажа для задачи
 -- =====================================================
 CREATE OR REPLACE FUNCTION recommend_crew_for_task(
-    p_task_id BIGINT,
+    p_task_id INTEGER,
     p_limit INT DEFAULT 10
 )
 RETURNS TABLE(
-    crew_id BIGINT,
+    crew_id INTEGER,
     crew_name TEXT,
     score INT,
-    recommended_role_id SMALLINT,
+    recommended_role_id INTEGER,
     recommended_role_title TEXT
 )
 LANGUAGE plpgsql
@@ -179,18 +130,6 @@ BEGIN
                 WHERE cc.crew_id = cm.crew_id
                     AND (cc.expiry_date IS NULL OR cc.expiry_date >= CURRENT_DATE)
             ) THEN 10 ELSE 0 END
-            -- -5 за уже назначенных в тот период
-            - CASE WHEN EXISTS (
-                SELECT 1 
-                FROM crew_assignment ca
-                WHERE ca.crew_id = cm.crew_id
-                    AND ca.expedition_id = v_expedition_id
-                    AND (
-                        (v_task_start IS NULL OR v_task_end IS NULL) OR
-                        (ca.assigned_to IS NULL AND v_task_end >= ca.assigned_from) OR
-                        (ca.assigned_to IS NOT NULL AND NOT (ca.assigned_to < v_task_start OR v_task_end < ca.assigned_from))
-                    )
-            ) THEN 5 ELSE 0 END
             -- +20 если уже назначен на эту экспедицию (предпочтительно)
             + CASE WHEN EXISTS (
                 SELECT 1 
@@ -218,7 +157,7 @@ COMMENT ON FUNCTION recommend_crew_for_task IS 'Рекомендация кан�
 -- =====================================================
 -- ФУНКЦИЯ 4: Получение текущего состояния экспедиции
 -- =====================================================
-CREATE OR REPLACE FUNCTION get_expedition_status(p_expedition_id BIGINT)
+CREATE OR REPLACE FUNCTION get_expedition_status(p_expedition_id INTEGER)
 RETURNS TABLE(
     expedition_code TEXT,
     expedition_name TEXT,
@@ -255,7 +194,7 @@ COMMENT ON FUNCTION get_expedition_status IS 'Получение сводной 
 -- =====================================================
 -- ФУНКЦИЯ 5: Проверка готовности экспедиции к старту
 -- =====================================================
-CREATE OR REPLACE FUNCTION check_expedition_readiness(p_expedition_id BIGINT)
+CREATE OR REPLACE FUNCTION check_expedition_readiness(p_expedition_id INTEGER)
 RETURNS TABLE(
     check_item TEXT,
     status TEXT,
@@ -312,7 +251,7 @@ COMMENT ON FUNCTION check_expedition_readiness IS 'Проверка готовн
 -- ПРОЦЕДУРА 1: Старт экспедиции
 -- =====================================================
 CREATE OR REPLACE PROCEDURE start_expedition(
-    p_expedition_id BIGINT,
+    p_expedition_id INTEGER,
     p_start_time TIMESTAMP WITH TIME ZONE DEFAULT now()
 )
 LANGUAGE plpgsql
@@ -354,7 +293,7 @@ COMMENT ON PROCEDURE start_expedition IS 'Процедура запуска эк
 -- ПРОЦЕДУРА 2: Завершение экспедиции
 -- =====================================================
 CREATE OR REPLACE PROCEDURE complete_expedition(
-    p_expedition_id BIGINT,
+    p_expedition_id INTEGER,
     p_end_time TIMESTAMP WITH TIME ZONE DEFAULT now()
 )
 LANGUAGE plpgsql
