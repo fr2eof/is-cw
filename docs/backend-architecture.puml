@@ -1,0 +1,773 @@
+@startuml
+title Архитектура приложения Ocean Expeditions Backend
+
+skinparam packageStyle rectangle
+skinparam linetype ortho
+
+package "Уровень REST API" {
+    class ExpeditionController {
+        +getAllExpeditions()
+        +getExpeditionById()
+        +getExpeditionByCode()
+        +createExpedition()
+        +updateExpedition()
+        +deleteExpedition()
+        +startExpedition()
+        +completeExpedition()
+    }
+    
+    class VesselController {
+        +getAllVessels()
+        +getVesselById()
+        +getVesselsByStatus()
+        +createVessel()
+        +updateVessel()
+        +deleteVessel()
+    }
+    
+    class CrewController {
+        +getAllCrewMembers()
+        +getCrewMemberById()
+        +createCrewMember()
+        +updateCrewMember()
+        +assignCrewToExpedition()
+        +removeCrewFromExpedition()
+        +getCrewForExpedition()
+    }
+    
+    class MissionTaskController {
+        +getTasksByExpedition()
+        +getTaskById()
+        +createTask()
+        +updateTask()
+        +deleteTask()
+    }
+    
+    class IncidentController {
+        +getIncidentsByExpedition()
+        +getUnresolvedIncidents()
+        +getIncidentById()
+        +createIncident()
+        +resolveIncident()
+    }
+    
+    class SensorObservationController {
+        +getObservationsBySensor()
+        +getObservationsByExpedition()
+        +createObservation()
+    }
+    
+    class InventoryController {
+        +getInventoryByExpedition()
+        +createInventoryItem()
+        +adjustInventory()
+    }
+    
+    class GlobalExceptionHandler {
+        +handleResourceNotFoundException()
+        +handleIllegalStateException()
+        +handleIllegalArgumentException()
+        +handleGenericException()
+    }
+}
+
+package "Уровень бизнес-логики" {
+    class ExpeditionService {
+        +getAllExpeditions()
+        +getExpeditionById()
+        +getExpeditionByCode()
+        +createExpedition()
+        +updateExpedition()
+        +deleteExpedition()
+        +startExpedition()
+        +completeExpedition()
+        -toDto()
+        -toEntity()
+    }
+    
+    class VesselService {
+        +getAllVessels()
+        +getVesselById()
+        +getVesselsByStatus()
+        +createVessel()
+        +updateVessel()
+        +deleteVessel()
+        -toDto()
+        -toEntity()
+    }
+    
+    class CrewService {
+        +getAllCrewMembers()
+        +getCrewMemberById()
+        +createCrewMember()
+        +updateCrewMember()
+        +assignCrewToExpedition()
+        +removeCrewFromExpedition()
+        +getCrewForExpedition()
+        -toDto()
+        -toEntity()
+    }
+    
+    class MissionTaskService {
+        +getTasksByExpedition()
+        +getTaskById()
+        +createTask()
+        +updateTask()
+        +deleteTask()
+        -toDto()
+        -toEntity()
+    }
+    
+    class SensorObservationService {
+        +getObservationsBySensor()
+        +getObservationsByExpedition()
+        +createObservation()
+        -toDto()
+    }
+    
+    class IncidentService {
+        +getIncidentsByExpedition()
+        +getUnresolvedIncidents()
+        +getIncidentById()
+        +createIncident()
+        +resolveIncident()
+        -toDto()
+    }
+    
+    class InventoryService {
+        +getInventoryByExpedition()
+        +createInventoryItem()
+        +adjustInventory()
+        -toDto()
+    }
+}
+
+package "Уровень доступа к данным" {
+    class ExpeditionRepository {
+        +findByCode()
+        +findByStatus()
+        +findByVesselId()
+        +findByDateRange()
+    }
+    
+    class VesselRepository {
+        +findByImoNumber()
+        +findByStatus()
+    }
+    
+    class CrewMemberRepository {
+        +findByEmail()
+        +findByStatus()
+        +findAvailableForExpedition()
+    }
+    
+    class CrewAssignmentRepository {
+        +findByExpeditionId()
+        +findByCrewId()
+        +existsByExpeditionIdAndCrewId()
+    }
+    
+    class MissionTaskRepository {
+        +findByExpeditionId()
+        +findByStatus()
+        +findByExpeditionIdAndStatus()
+        +findByResponsibleCrewId()
+        +findRootTasksByExpeditionId()
+    }
+    
+    class SensorObservationRepository {
+        +findBySensorId()
+        +findByExpeditionId()
+        +findByQcStatus()
+        +findLatestBySensorId()
+        +findBySensorIdAndTimeRange()
+    }
+    
+    class IncidentRepository {
+        +findByExpeditionId()
+        +findBySeverity()
+        +findUnresolvedByExpeditionId()
+    }
+    
+    class InventoryItemRepository {
+        +findByExpeditionId()
+        +findItemsWithStock()
+        +findLowStockItems()
+    }
+    
+    class InventoryTransactionRepository {
+        +findByItemId()
+        +findHistoryByItemId()
+        +findByExpeditionIdAndTimeRange()
+    }
+    
+    class PortRepository {
+        +findByUnlocode()
+    }
+    
+    class PortCallRepository {
+        +findByExpeditionId()
+        +findByPortId()
+    }
+    
+    class RoleRepository {
+        +findByCode()
+    }
+    
+    class CertificationRepository {
+    }
+    
+    class CrewCertificationRepository {
+        +findByCrewId()
+        +findByCertificationId()
+        +findExpiredCertifications()
+    }
+    
+    class EquipmentRepository {
+        +findBySerialNumber()
+        +findByCondition()
+        +findByCategory()
+    }
+    
+    class ExpeditionEquipmentRepository {
+        +findByExpeditionId()
+        +findByEquipmentId()
+    }
+    
+    class EnvironmentalRuleRepository {
+        +findByName()
+        +findByActiveTrue()
+        +findByParameterAndActiveTrue()
+    }
+    
+    class SensorRepository {
+        +findBySensorType()
+        +findByInstalledOnVesselId()
+        +findByRuleId()
+    }
+    
+    class PermitRepository {
+        +findByExpeditionId()
+        +findValidPermitsForExpedition()
+    }
+    
+    class DocumentRepository {
+        +findByExpeditionId()
+        +findByDocType()
+    }
+    
+    class SystemAuditRepository {
+        +findByObjectType()
+        +findByObjectTypeAndObjectId()
+        +findByTimeRange()
+    }
+}
+
+package "Уровень JPA/Entity" {
+    class Expedition {
+        -Integer id
+        -String code
+        -String name
+        -String description
+        -Vessel vessel
+        -Long managerUserId
+        -LocalDate plannedStart
+        -LocalDate plannedEnd
+        -Instant actualStart
+        -Instant actualEnd
+        -ExpeditionStatus status
+    }
+    
+    class Vessel {
+        -Integer id
+        -String imoNumber
+        -String name
+        -String callSign
+        -BigDecimal capacityTons
+        -Integer builtYear
+        -VesselStatus status
+    }
+    
+    class CrewMember {
+        -Integer id
+        -String externalId
+        -String firstName
+        -String lastName
+        -LocalDate birthDate
+        -String nationality
+        -String email
+        -String phone
+        -CrewStatus status
+    }
+    
+    class Role {
+        -Integer id
+        -String code
+        -String title
+        -Boolean minCertRequired
+    }
+    
+    class CrewAssignment {
+        -Expedition expedition
+        -CrewMember crew
+    }
+    
+    class MissionTask {
+        -Integer id
+        -Expedition expedition
+        -MissionTask parentTask
+        -String title
+        -String description
+        -CrewMember responsibleCrew
+        -Instant plannedStart
+        -Instant plannedEnd
+        -TaskStatus status
+    }
+    
+    class SensorObservation {
+        -Integer id
+        -Sensor sensor
+        -Expedition expedition
+        -Instant observedAt
+        -BigDecimal valueNum
+        -String valueText
+        -QcStatus qcStatus
+    }
+    
+    class Incident {
+        -Integer id
+        -Expedition expedition
+        -Instant reportedAt
+        -CrewMember reportedByCrew
+        -IncidentSeverity severity
+        -String category
+        -String description
+        -Instant resolvedAt
+    }
+    
+    class InventoryItem {
+        -Integer id
+        -Expedition expedition
+        -String name
+        -String unit
+        -BigDecimal quantityOnboard
+    }
+    
+    class InventoryTransaction {
+        -Integer id
+        -InventoryItem item
+        -TransactionType txnType
+        -BigDecimal qty
+        -Instant txnTs
+        -CrewMember performedBy
+        -String notes
+    }
+    
+    class Port {
+        -Integer id
+        -String name
+        -String country
+        -BigDecimal latitude
+        -BigDecimal longitude
+        -String unlocode
+    }
+    
+    class PortCall {
+        -Integer id
+        -Expedition expedition
+        -Port port
+        -Instant arrivalTs
+        -Instant departureTs
+        -String operationNotes
+    }
+    
+    class Certification {
+        -Integer id
+        -String name
+        -String issuer
+        -LocalDate validFrom
+        -LocalDate validTo
+    }
+    
+    class CrewCertification {
+        -CrewMember crew
+        -Certification certification
+        -String certificateNumber
+        -LocalDate issuedDate
+        -LocalDate expiryDate
+    }
+    
+    class Equipment {
+        -Integer id
+        -String serialNumber
+        -String name
+        -String category
+        -EquipmentCondition condition
+        -String locationDescription
+    }
+    
+    class ExpeditionEquipment {
+        -Expedition expedition
+        -Equipment equipment
+    }
+    
+    class EnvironmentalRule {
+        -Integer id
+        -String name
+        -String parameter
+        -BigDecimal thresholdValue
+        -ThresholdOperator thresholdOperator
+        -Boolean active
+    }
+    
+    class Sensor {
+        -Integer id
+        -Equipment equipment
+        -String name
+        -String sensorType
+        -String unit
+        -Vessel installedOnVessel
+        -Instant installedAt
+        -EnvironmentalRule rule
+    }
+    
+    class Permit {
+        -Integer id
+        -Expedition expedition
+        -String permitType
+        -String issuingAuthority
+        -LocalDate validFrom
+        -LocalDate validTo
+        -String documentRef
+    }
+    
+    class Document {
+        -Integer id
+        -Expedition expedition
+        -String docType
+        -String title
+        -String version
+        -String storedAt
+        -CrewMember uploadedBy
+        -Instant uploadedAt
+    }
+    
+    class SystemAudit {
+        -Integer id
+        -Instant eventTs
+        -String objectType
+        -String objectId
+        -String action
+        -CrewMember performedBy
+        -Map<String, Object> details
+    }
+    
+    enum ExpeditionStatus {
+        planned
+        ready
+        active
+        completed
+        cancelled
+    }
+    
+    enum VesselStatus {
+        available
+        on_mission
+        maintenance
+        decommissioned
+    }
+    
+    enum CrewStatus {
+        active
+        inactive
+        onboard
+        on_leave
+    }
+    
+    enum TaskStatus {
+        pending
+        in_progress
+        done
+        blocked
+        cancelled
+    }
+    
+    enum QcStatus {
+        unchecked
+        ok
+        flagged
+        invalid
+    }
+    
+    enum IncidentSeverity {
+        low
+        medium
+        high
+        critical
+    }
+    
+    enum TransactionType {
+        load
+        unload
+        consume
+        transfer_in
+        transfer_out
+        adjust
+    }
+    
+    enum EquipmentCondition {
+        good
+        needs_service
+        retired
+    }
+    
+    enum ThresholdOperator {
+        LE
+        GE
+        GT
+        LT
+    }
+}
+
+package "Конфигурация" {
+    class SecurityConfig {
+        +securityFilterChain()
+    }
+    
+    class WebConfig {
+        +addCorsMappings()
+    }
+}
+
+package "Исключения" {
+    class ResourceNotFoundException {
+    }
+}
+
+package "DTO" {
+    class ExpeditionDto {
+    }
+    
+    class VesselDto {
+    }
+    
+    class CrewMemberDto {
+    }
+    
+    class MissionTaskDto {
+    }
+    
+    class SensorObservationDto {
+    }
+    
+    class IncidentDto {
+    }
+    
+    class InventoryItemDto {
+    }
+    
+    class ApiResponse {
+    }
+}
+
+package "База данных" {
+    class DB_expedition
+    class DB_vessel
+    class DB_crew_member
+    class DB_role
+    class DB_crew_assignment
+    class DB_mission_task
+    class DB_sensor_observation
+    class DB_incident
+    class DB_inventory_item
+    class DB_inventory_transaction
+    class DB_port
+    class DB_port_call
+    class DB_certification
+    class DB_crew_certification
+    class DB_equipment
+    class DB_expedition_equipment
+    class DB_environmental_rule
+    class DB_sensor
+    class DB_permit
+    class DB_document
+    class DB_system_audit
+}
+
+' Связи между уровнями
+ExpeditionController --> ExpeditionService
+VesselController --> VesselService
+CrewController --> CrewService
+MissionTaskController --> MissionTaskService
+IncidentController --> IncidentService
+SensorObservationController --> SensorObservationService
+InventoryController --> InventoryService
+
+GlobalExceptionHandler ..> ExpeditionController
+GlobalExceptionHandler ..> VesselController
+GlobalExceptionHandler ..> CrewController
+GlobalExceptionHandler ..> MissionTaskController
+GlobalExceptionHandler ..> IncidentController
+GlobalExceptionHandler ..> SensorObservationController
+GlobalExceptionHandler ..> InventoryController
+
+ExpeditionService --> ExpeditionRepository
+ExpeditionService --> VesselRepository
+VesselService --> VesselRepository
+CrewService --> CrewMemberRepository
+CrewService --> ExpeditionRepository
+CrewService --> CrewAssignmentRepository
+CrewService --> RoleRepository
+MissionTaskService --> MissionTaskRepository
+MissionTaskService --> ExpeditionRepository
+MissionTaskService --> CrewMemberRepository
+SensorObservationService --> SensorObservationRepository
+SensorObservationService --> SensorRepository
+SensorObservationService --> ExpeditionRepository
+IncidentService --> IncidentRepository
+IncidentService --> ExpeditionRepository
+IncidentService --> CrewMemberRepository
+InventoryService --> InventoryItemRepository
+InventoryService --> InventoryTransactionRepository
+InventoryService --> ExpeditionRepository
+
+ExpeditionRepository --> Expedition
+VesselRepository --> Vessel
+CrewMemberRepository --> CrewMember
+CrewAssignmentRepository --> CrewAssignment
+MissionTaskRepository --> MissionTask
+SensorObservationRepository --> SensorObservation
+IncidentRepository --> Incident
+InventoryItemRepository --> InventoryItem
+InventoryTransactionRepository --> InventoryTransaction
+PortRepository --> Port
+PortCallRepository --> PortCall
+RoleRepository --> Role
+CertificationRepository --> Certification
+CrewCertificationRepository --> CrewCertification
+EquipmentRepository --> Equipment
+ExpeditionEquipmentRepository --> ExpeditionEquipment
+EnvironmentalRuleRepository --> EnvironmentalRule
+SensorRepository --> Sensor
+PermitRepository --> Permit
+DocumentRepository --> Document
+SystemAuditRepository --> SystemAudit
+
+' Связи между сущностями
+Expedition --> Vessel : ManyToOne
+Expedition --> CrewAssignment : OneToMany
+Expedition --> MissionTask : OneToMany
+Expedition --> SensorObservation : OneToMany
+Expedition --> Incident : OneToMany
+Expedition --> InventoryItem : OneToMany
+Expedition --> PortCall : OneToMany
+Expedition --> Permit : OneToMany
+Expedition --> Document : OneToMany
+Expedition --> ExpeditionEquipment : OneToMany
+
+CrewMember --> CrewAssignment : OneToMany
+CrewMember --> CrewCertification : OneToMany
+CrewMember --> MissionTask : OneToMany
+CrewMember --> Incident : ManyToOne
+CrewMember --> InventoryTransaction : ManyToOne
+CrewMember --> Document : ManyToOne
+CrewMember --> SystemAudit : ManyToOne
+CrewMember --> Role : ManyToMany
+
+CrewAssignment --> Expedition : ManyToOne
+CrewAssignment --> CrewMember : ManyToOne
+
+MissionTask --> Expedition : ManyToOne
+MissionTask --> MissionTask : ManyToOne (parent)
+MissionTask --> CrewMember : ManyToOne
+
+SensorObservation --> Sensor : ManyToOne
+SensorObservation --> Expedition : ManyToOne
+
+Sensor --> Equipment : ManyToOne
+Sensor --> Vessel : ManyToOne
+Sensor --> EnvironmentalRule : ManyToOne
+
+Incident --> Expedition : ManyToOne
+Incident --> CrewMember : ManyToOne
+
+InventoryItem --> Expedition : ManyToOne
+InventoryItem --> InventoryTransaction : OneToMany
+
+InventoryTransaction --> InventoryItem : ManyToOne
+InventoryTransaction --> CrewMember : ManyToOne
+
+PortCall --> Expedition : ManyToOne
+PortCall --> Port : ManyToOne
+
+CrewCertification --> CrewMember : ManyToOne
+CrewCertification --> Certification : ManyToOne
+
+ExpeditionEquipment --> Expedition : ManyToOne
+ExpeditionEquipment --> Equipment : ManyToOne
+
+' Связи с БД
+Expedition --> DB_expedition
+Vessel --> DB_vessel
+CrewMember --> DB_crew_member
+Role --> DB_role
+CrewAssignment --> DB_crew_assignment
+MissionTask --> DB_mission_task
+SensorObservation --> DB_sensor_observation
+Incident --> DB_incident
+InventoryItem --> DB_inventory_item
+InventoryTransaction --> DB_inventory_transaction
+Port --> DB_port
+PortCall --> DB_port_call
+Certification --> DB_certification
+CrewCertification --> DB_crew_certification
+Equipment --> DB_equipment
+ExpeditionEquipment --> DB_expedition_equipment
+EnvironmentalRule --> DB_environmental_rule
+Sensor --> DB_sensor
+Permit --> DB_permit
+Document --> DB_document
+SystemAudit --> DB_system_audit
+
+' DTO связи
+ExpeditionService ..> ExpeditionDto
+VesselService ..> VesselDto
+CrewService ..> CrewMemberDto
+MissionTaskService ..> MissionTaskDto
+SensorObservationService ..> SensorObservationDto
+IncidentService ..> IncidentDto
+InventoryService ..> InventoryItemDto
+
+ExpeditionController ..> ApiResponse
+VesselController ..> ApiResponse
+CrewController ..> ApiResponse
+MissionTaskController ..> ApiResponse
+IncidentController ..> ApiResponse
+SensorObservationController ..> ApiResponse
+InventoryController ..> ApiResponse
+
+note right of ExpeditionService
+@Service
+@Transactional
+readOnly для запросов
+end note
+
+note right of ExpeditionRepository
+@Repository
+JpaRepository<Expedition, Integer>
+end note
+
+note right of Expedition
+@Entity
+@Table(name = "expedition")
+@ManyToOne, @OneToMany
+end note
+
+note right of SecurityConfig
+@Configuration
+@EnableWebSecurity
+Разрешен доступ для разработки
+end note
+
+@enduml
+
